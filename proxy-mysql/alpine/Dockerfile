@@ -7,6 +7,7 @@ ARG APK_FLAGS_DEV="${APK_FLAGS_COMMON} --no-cache"
 ARG DB_TYPE=mysql
 ENV TERM=xterm
 ENV MIBDIRS=/usr/share/snmp/mibs:/var/lib/zabbix/mibs MIBS=+ALL
+ENV CURL_VERSION 7.55.1
 
 RUN addgroup zabbix && \
     adduser -S \
@@ -28,6 +29,28 @@ RUN addgroup zabbix && \
     chown --quiet -R zabbix:root /var/lib/zabbix && \
     mkdir -p /usr/share/doc/zabbix-proxy-${DB_TYPE} && \
     apk update && \
+    apk update && \
+    apk add --update --no-cache openssl openssl-dev ca-certificates && \
+    apk add --update --no-cache --virtual curldeps g++ make perl && \
+    wget https://curl.haxx.se/download/curl-$CURL_VERSION.tar.bz2 && \
+    tar xjvf curl-$CURL_VERSION.tar.bz2 && \
+    rm curl-$CURL_VERSION.tar.bz2 && \
+    cd curl-$CURL_VERSION && \
+    ./configure \
+        --prefix=/usr \
+        --with-ssl \
+        --enable-ipv6 \
+        --enable-unix-sockets \
+        --without-libidn \
+        --disable-static \
+        --disable-ldap \
+        --with-pic && \
+    make && \
+    make install && \
+    cd / && \
+    rm -r curl-$CURL_VERSION && \
+    rm -r /usr/share/man && \
+    apk del curldeps && \    
     apk add ${APK_FLAGS_PERSISTANT} \
             iputils \
             supervisor \
@@ -39,7 +62,6 @@ RUN addgroup zabbix && \
             unixodbc \
             net-snmp-agent-libs \
             libldap \
-            libcurl \
             openipmi-libs \
             libevent \
             pcre \
@@ -63,7 +85,6 @@ RUN apk add ${APK_FLAGS_DEV} --virtual build-dependencies \
             libssh2-dev \
             openipmi-dev \
             openldap-dev \
-            curl-dev \
             libevent-dev \
             pcre-dev \
             subversion && \
